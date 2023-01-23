@@ -1,42 +1,47 @@
+import { MongoClient, ObjectId } from "mongodb";
 import { Fragment } from "react";
 
 const MeetupDetails = (props) => {
   return (
     <Fragment>
-      <img
-      className="w-full"
-        src={props.meetupData.image}
-        alt="Meetup Image"
-      />
-      <h1 className="text-2xl text-center">Meetup Title</h1>
-      <address className="text-center">Meetup Address</address>
-      <p className=" text-center">Meetup Description</p>
+      <img className="w-full" src={props.meetupData.image} alt="Meetup Image" />
+      <h1 className="text-2xl text-center">{props.meetupData.title}</h1>
+      <address className="text-center">{props.meetupData.address}</address>
+      <p className=" text-center">{props.meetupData.description}</p>
     </Fragment>
   );
 };
 
 export async function getStaticPaths() {
+  const client = await MongoClient.connect(process.env.MONGO_URI);
+  const db = client.db();
+  const collection = db.collection("meetups");
+  const meetups = await collection.find({}, { _id: 1 }).toArray();
+  client.close();
   return {
     fallback: false,
-    paths: [
-      { params: { meetupId: "m1" } },
-      { params: { meetupId: "m2" } },
-    ]
-  }
+    paths: meetups.map((meetup) => ({
+      params: {
+        meetupId: meetup._id.toString(),
+      },
+    })),
+  };
 }
 
 export async function getStaticProps(context) {
   const meetupId = context.params.meetupId;
-
+  const client = await MongoClient.connect(process.env.MONGO_URI);
+  const db = client.db();
+  const collection = db.collection("meetups");
+  const meetup = await collection.findOne({ _id: ObjectId(meetupId) });
   return {
     props: {
       meetupData: {
-        image:
-          "http://t3.gstatic.com/licensed-image?q=tbn:ANd9GcQ1oS-DeKDIgvicoSyoD8KKoIAinTTDeC6VO7erBHEsAggFjaZYZ6YP1HkFahtlKTb_",
+        image: meetup.image,
         id: meetupId,
-        title: "A First Meetup",
-        address: "Some address 5, 12345 Some City",
-        description: "This is a first meetup!",
+        title: meetup.title,
+        address: meetup.address,
+        description: meetup.description,
       },
     },
   };
